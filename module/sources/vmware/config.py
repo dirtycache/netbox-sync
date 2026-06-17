@@ -166,6 +166,20 @@ class VMWareConfig(ConfigBase):
                                                value: defines the desired NetBox platform name""",
                                              config_example="VMware ESXi 7.0.3 = VMware ESXi 7.0 Update 3o"),
                                 ConfigOption("vm_platform_relation", str, config_example="centos-7.* = centos7, microsoft-windows-server-2016.* = Windows2016"),
+                                ConfigOption("vm_platform_from_annotation_relation",
+                                             str,
+                                             description="""\
+                                             Override the platform of a VM based on the content of its vCenter
+                                             annotation (the Notes field, synced to the NetBox comments field).
+                                             Useful when vSphere misidentifies the guest OS — for example, F5
+                                             BIG-IP/BIG-IQ Virtual Edition VMs report as CentOS but their
+                                             annotation contains product-identifying text.
+                                             This is done with a comma separated key = value list.
+                                               key: regex matched anywhere in the annotation text (re.search,
+                                                    re.DOTALL — patterns span newlines automatically)
+                                               value: defines the desired NetBox platform name
+                                             Takes priority over vm_platform_relation when both match.""",
+                                             config_example="Virtual Edition.*F5 = TMOS"),
                                 ConfigOption("host_role_relation",
                                              str,
                                              description="""\
@@ -466,6 +480,37 @@ class VMWareConfig(ConfigBase):
             if option.key == "vm_exclude_by_tag_filter":
 
                 option.set_value(quoted_split(option.value))
+
+                continue
+
+            if option.key == "vm_platform_from_annotation_relation":
+
+                relation_data = list()
+
+                for relation in quoted_split(option.value):
+
+                    object_name = relation.split("=")[0].strip(' "')
+                    relation_name = relation.split("=")[1].strip(' "')
+
+                    if len(object_name) == 0 or len(relation_name) == 0:
+                        log.error(f"Config option '{relation}' malformed got '{object_name}' for "
+                                  f"object name and '{relation_name}' for annotation platform name.")
+                        self.set_validation_failed()
+                        continue
+
+                    try:
+                        re_compiled = re.compile(object_name, re.DOTALL)
+                    except Exception as e:
+                        log.error(f"Problem parsing regular expression '{object_name}' for '{relation}': {e}")
+                        self.set_validation_failed()
+                        continue
+
+                    relation_data.append({
+                        "object_regex": re_compiled,
+                        "assigned_name": relation_name
+                    })
+
+                option.set_value(relation_data)
 
                 continue
 
