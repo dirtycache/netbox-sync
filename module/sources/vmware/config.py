@@ -8,7 +8,7 @@
 #  repository or visit: <https://opensource.org/licenses/MIT>.
 
 import re
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 
 from module.common.misc import quoted_split
 from module.config import source_config_section_name
@@ -81,6 +81,18 @@ class VMWareConfig(ConfigBase):
                          config_example=3128),
 
             ConfigOption(**config_option_permitted_subnets_definition),
+
+            ConfigOption("vm_ip_permitted_overlapping_subnets",
+                         str,
+                         description="""\
+                         Define subnets where the same IP address may legitimately appear on
+                         multiple VM interfaces simultaneously — for example, isolated HA
+                         peer-to-peer links where the same /30 addressing is reused across
+                         many VM pairs. Supply a comma-separated list of prefixes in CIDR
+                         notation. When an IP falls within one of these subnets, netbox-sync
+                         creates a separate NetBox IP address object per interface rather than
+                         sharing a single object across VMs.""",
+                         config_example="10.99.99.0/24, 192.168.200.0/24"),
 
             ConfigOptionGroup(title="filter",
                               description="""filters can be used to include/exclude certain objects from importing
@@ -695,3 +707,16 @@ class VMWareConfig(ConfigBase):
                 self.set_validation_failed()
 
             permitted_subnets_option.set_value(permitted_subnets)
+
+        overlapping_subnets_option = self.get_option_by_name("vm_ip_permitted_overlapping_subnets")
+
+        if overlapping_subnets_option is not None and overlapping_subnets_option.value is not None:
+            subnet_list = [x.strip() for x in overlapping_subnets_option.value.split(",") if x.strip() != ""]
+            parsed_subnets = []
+            for subnet in subnet_list:
+                try:
+                    parsed_subnets.append(ip_network(subnet, strict=False))
+                except Exception as e:
+                    log.error(f"Problem parsing vm_ip_permitted_overlapping_subnets entry '{subnet}': {e}")
+                    self.set_validation_failed()
+            overlapping_subnets_option.set_value(parsed_subnets)
