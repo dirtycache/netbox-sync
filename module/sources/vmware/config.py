@@ -501,8 +501,8 @@ class VMWareConfig(ConfigBase):
 
                 for relation in quoted_split(option.value):
 
-                    object_name = relation.split("=")[0].strip(' "')
-                    relation_name = relation.split("=")[1].strip(' "')
+                    object_name = relation.split("=")[0].strip()
+                    relation_name = relation.split("=")[1].strip()
 
                     if len(object_name) == 0 or len(relation_name) == 0:
                         log.error(f"Config option '{relation}' malformed got '{object_name}' for "
@@ -534,8 +534,8 @@ class VMWareConfig(ConfigBase):
 
                 for relation in quoted_split(option.value):
 
-                    object_name = relation.split("=")[0].strip(' "')
-                    relation_name = relation.split("=")[1].strip(' "')
+                    object_name = relation.split("=")[0].strip()
+                    relation_name = relation.split("=")[1].strip()
 
                     if len(object_name) == 0 or len(relation_name) == 0:
                         log.error(f"Config option '{relation}' malformed got '{object_name}' for "
